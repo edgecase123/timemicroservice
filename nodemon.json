@@ -1,0 +1,11 @@
+{
+  "verbose": true,
+  "nodemonConfig": {
+    "watch": [
+      "*.html",
+      "*.js"
+    ],
+    "ext": "html,js",
+    "exec": "node server.js"
+  }
+}
