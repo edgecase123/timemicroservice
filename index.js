@@ -1,10 +1,11 @@
 require("dotenv").config();
 const express = require('express');
-
+const { param, query, validationResult, oneOf, body} = require('express-validator');
 let app = express();
 
 // Cors
 const cors = require('cors');
+const {json} = require("express");
 app.use(cors());
 app.use(express.static('public'));
 
@@ -13,16 +14,55 @@ app.get('/', (req, res) => {
     res.sendFile(__dirname + '/views/index.html');
 });
 
-app.get('/api/:date', (req, res) => {
-    console.log(req.params.date);
-    const dateParams = req.params.date;
-    const resultDate = (isNaN(dateParams) ? new Date(req.params.date) : new Date(req.params.date * 1000 ));
+const INVALID_DATE_MESSAGE = 'Invalid Date';
 
-    let resultObj = {unix: resultDate.valueOf(), utc: resultDate.toUTCString()};
+/**
+ * Extracted validation handler to improve readability.
+ */
+function validateDateParams() {
+    return oneOf([
+        [param('date').notEmpty(), param('date').isInt({min: 0})],
+        [param('date').notEmpty(), param('date').isDate()],
+        param('date').isEmpty(),
+    ]);
+}
 
-    res.json(resultObj);
-})
+/**
+ * Extracted function for parsing date logic.
+ */
+function parseDate(dateParam) {
+    if (dateParam === undefined) {
+        return new Date();
+    }
+    if (isNaN(dateParam)) {
+        return new Date(dateParam);
+    }
+    return new Date(dateParam * 1000);
+}
 
-app.listen(3001, () => {
+app.get('/api/:date?',
+    validateDateParams(),
+    (req, res) => {
+        console.log('Starting API timestamp');
+
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            console.log(errors);
+            return res.json({error: INVALID_DATE_MESSAGE});
+        }
+
+        const dateParam = req.params.date;
+        const resultDate = parseDate(dateParam);
+
+        const response = {
+            unix: resultDate.valueOf(),
+            utc: resultDate.toUTCString()
+        };
+
+        return res.json(response);
+    }
+);
+
+app.listen(process.env.NODE_PORT, () => {
     console.log('Server started on port ' + process.env.NODE_PORT);
 });
