@@ -17,37 +17,56 @@ app.get('/', (req, res) => {
 const INVALID_DATE_MESSAGE = 'Invalid Date';
 
 /**
- * Extracted validation handler to improve readability.
+ * Validation handler to improve readability.
  */
 function validateDateParams() {
     return oneOf([
+        param('date').custom(value => {
+            if (!value) {
+                // empty values ok
+                return true;
+            }
+
+            const moment = require('moment');
+            if (!moment(value).isValid()) {
+                console.error('Invalid date: ' + value);
+                throw new Error("Invalid Date");
+            }
+
+            return true;
+        }),
         [param('date').notEmpty(), param('date').isInt({min: 0})],
-        [param('date').notEmpty(), param('date').isDate()],
+        [param('date').notEmpty(), param('date').isISO8601()],
         param('date').isEmpty(),
     ]);
 }
 
 /**
- * Extracted function for parsing date logic.
+ * Function for parsing date logic.
  */
 function parseDate(dateParam) {
     if (dateParam === undefined) {
         return new Date();
     }
+
     if (isNaN(dateParam)) {
-        return new Date(dateParam);
+        console.log(`Date Param: ${dateParam}`);
+        const moment = require('moment');
+        const result = moment(dateParam).toDate();
+        console.log(result.toString());
+        return result;
     }
-    return new Date(dateParam * 1000);
+
+    return new Date(parseInt(dateParam));
 }
 
 app.get('/api/:date?',
     validateDateParams(),
     (req, res) => {
-        console.log('Starting API timestamp');
+        console.log('Starting API timestamp with params' + JSON.stringify(req.params));
 
         const errors = validationResult(req);
         if (!errors.isEmpty()) {
-            console.log(errors);
             return res.json({error: INVALID_DATE_MESSAGE});
         }
 
@@ -58,7 +77,8 @@ app.get('/api/:date?',
             unix: resultDate.valueOf(),
             utc: resultDate.toUTCString()
         };
-
+        console.log('Response follows');
+        console.log(response);
         return res.json(response);
     }
 );
